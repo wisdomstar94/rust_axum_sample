@@ -1,4 +1,4 @@
-use axum::{Router, routing::{get, post}, body::{Bytes, Body}, http::StatusCode, response::Response, extract::Query, middleware, Extension};
+use axum::{Router, routing::{get, post}, body::{Bytes, Body}, http::StatusCode, response::Response, extract::{Query, Path, Request}, middleware, Extension};
 use serde::{Deserialize, Serialize};
 use crate::middlewares::{self, header_auth_check::LoginedUser};
 
@@ -28,6 +28,7 @@ pub fn routes() -> Router {
     .route("/", get(root_route))
     .route("/post-request", post(post_request_route))
     .route("/get-request", get(get_request_route))
+    .route("/path-param-and-header-check/:id/:mode", get(path_param_and_header_check_route))
     .route_layer(middleware::from_fn(middlewares::test_only::middleware))
 }
 async fn root_route(Extension(user): Extension<LoginedUser>) -> &'static str {
@@ -85,6 +86,32 @@ async fn post_request_route(body: Bytes) -> Response {
 async fn get_request_route(query: Query<GetRequestRoutePayload>) -> Response {
   let payload: GetRequestRoutePayload = query.0;
   println!("payload {:?}", payload);
+
+  Response::builder()
+    .status(StatusCode::BAD_REQUEST)
+    .header("Content-Type", "application/json")
+    .body(Body::from(
+      CommonResponse::new()
+        .set_message("정상 응답")
+        .set_data(Data {
+          name: "홍길동".to_string(),
+          age: 31,
+          habits: vec!["개발".to_string(), "드라마".to_string()],
+        })
+        .to_json_string()
+      ))
+    .unwrap()
+}
+
+async fn path_param_and_header_check_route(
+  Path((id, mode)): Path<(u64, String)>, 
+  req: Request
+) -> Response {
+  println!("path_param_and_header_check_route!!");
+  println!("id : {:?}", id);
+  println!("mode : {:?}", mode);
+  let headers = req.headers();
+  println!("headers : {:?}", headers);
 
   Response::builder()
     .status(StatusCode::BAD_REQUEST)
