@@ -1,5 +1,7 @@
-use axum::{Router, routing::{get, post}, body::{Bytes, Body}, http::StatusCode, response::Response, extract::Query};
+use axum::{Router, routing::{get, post}, body::{Bytes, Body}, http::StatusCode, response::Response, extract::Query, middleware, Extension};
 use serde::{Deserialize, Serialize};
+use crate::middlewares::{self, header_auth_check::LoginedUser};
+
 use super::CommonResponse;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -26,8 +28,10 @@ pub fn routes() -> Router {
     .route("/", get(root_route))
     .route("/post-request", post(post_request_route))
     .route("/get-request", get(get_request_route))
+    .route_layer(middleware::from_fn(middlewares::test_only::middleware))
 }
-async fn root_route() -> &'static str {
+async fn root_route(Extension(user): Extension<LoginedUser>) -> &'static str {
+  println!("middleware 에서 전달 받은 user : {:?}", user);
   "test root"
 }
 
