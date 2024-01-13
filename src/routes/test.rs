@@ -1,4 +1,4 @@
-use axum::{Router, routing::{get, post}, body::{Bytes, Body}, http::StatusCode, response::Response, extract::{Query, Path, Request}, middleware, Extension};
+use axum::{Router, routing::{get, post}, body::{Bytes, Body}, http::StatusCode, response::Response, extract::{Path, Request}, middleware, Extension};
 use serde::{Deserialize, Serialize};
 use crate::middlewares::{self, header_auth_check::LoginedUser};
 
@@ -21,6 +21,7 @@ struct GetRequestRoutePayload {
   page: u32,
   size: u32,
   search: Option<String>,
+  b: Option<Vec<String>>,
 }
 
 pub fn routes() -> Router {
@@ -83,9 +84,32 @@ async fn post_request_route(body: Bytes) -> Response {
     .unwrap()
 }
 
-async fn get_request_route(query: Query<GetRequestRoutePayload>) -> Response {
-  let payload: GetRequestRoutePayload = query.0;
-  println!("payload {:?}", payload);
+async fn get_request_route(req: Request) -> Response {
+  let mut query_option: Option<GetRequestRoutePayload> = None;
+  // let query_str_o = req.uri().query();
+  if let Some(query_str) = req.uri().query() {
+    if let Ok(payload) = serde_qs::from_str::<GetRequestRoutePayload>(query_str) {
+      query_option = Some(payload);
+    } else {
+      println!("query_str : {:?}", query_str);
+    }
+  }
+  
+  if let None = query_option {
+    return Response::builder()
+      .status(StatusCode::BAD_REQUEST)
+      .header("Content-Type", "application/json")
+      .body(Body::from(
+        CommonResponse::<String>::new()
+          .set_error_code("200200")
+          .set_message("url query string 규격이 올바르지 않습니다.")
+          .to_json_string()
+        ))
+      .unwrap();
+  }
+  
+  let query = query_option.unwrap();
+  println!("query : {:?}", query);
 
   Response::builder()
     .status(StatusCode::BAD_REQUEST)
